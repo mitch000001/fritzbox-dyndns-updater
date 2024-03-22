@@ -2,6 +2,7 @@ package fritzbox
 
 import (
 	"fmt"
+	"sync"
 
 	"github.com/mitchellh/mapstructure"
 	upnp "github.com/sberk42/fritzbox_exporter/fritzbox_upnp"
@@ -44,10 +45,12 @@ type UPNPClient interface {
 }
 
 type upnpClient struct {
-	url       string
-	username  string
-	password  string
-	verifyTLS bool
+	url                    string
+	username               string
+	password               string
+	verifyTLS              bool
+	wanIPConnectionService *upnp.Service
+	sync.Mutex
 }
 
 // GetExternalIPv4Address implements UPNPClient.
@@ -117,21 +120,21 @@ func (u *upnpClient) GetExternalIPv6Prefix() (*ExternalIPv6Prefix, error) {
 }
 
 func (u *upnpClient) getService(svc string) (*upnp.Service, error) {
+	u.Mutex.Lock()
+	defer u.Mutex.Unlock()
+	if u.wanIPConnectionService != nil {
+		return u.wanIPConnectionService, nil
+	}
 	root, err := upnp.LoadServices(u.url, u.username, u.password, u.verifyTLS)
 	if err != nil {
 		return nil, fmt.Errorf("cannot load services: %w", err)
 	}
-	logrus.Debugf("Device: %+#v", root.Device)
-	for svcName := range root.Services {
-		logrus.Debugf("Available service: %s", svcName)
-	}
+	logrus.Debugf("Device: %+#v", root.Device.FriendlyName)
 	logrus.Debugf("Getting service %q", svc)
 	service, ok := root.Services[svc]
 	if !ok {
 		return nil, fmt.Errorf("could not find service %q", svc)
 	}
-	for actionName := range service.Actions {
-		logrus.Debugf("Available actions: %s", actionName)
-	}
+	u.wanIPConnectionService = service
 	return service, nil
 }
