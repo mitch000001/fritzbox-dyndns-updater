@@ -33,8 +33,8 @@ type ExternalIPv4 struct {
 	IPv4Address string `mapstructure:"ExternalIPAddress"`
 }
 
-func NewUPNPClient(url, username, password string, verifyTLS bool) UPNPClient {
-	return &upnpClient{url: url, username: username, password: password, verifyTLS: verifyTLS}
+func NewUPNPClient(url string, creds ClientCredentials) UPNPClient {
+	return &upnpClient{url: url, username: creds.Username, password: creds.Password, verifyTLS: creds.VerifyTLS}
 }
 
 type UPNPClient interface {
@@ -125,7 +125,7 @@ func (u *upnpClient) getService(svc string) (*upnp.Service, error) {
 	for svcName := range root.Services {
 		logrus.Debugf("Available service: %s", svcName)
 	}
-	logrus.Infof("Getting service %q", svc)
+	logrus.Debugf("Getting service %q", svc)
 	service, ok := root.Services[svc]
 	if !ok {
 		return nil, fmt.Errorf("could not find service %q", svc)

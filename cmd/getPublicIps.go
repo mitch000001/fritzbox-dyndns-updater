@@ -22,8 +22,6 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"os"
-
 	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/fritzbox"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -47,25 +45,20 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		client := fritzbox.NewUPNPClient(fritzboxURL, fritzboxUsername, fritzboxPassword, fritzboxVerifyTLS)
-		externalIPv6, err := client.GetExternalIPv6Address()
-		if err != nil {
-			logrus.Errorf("Could not get external IPv6 address: %v", err)
-			os.Exit(1)
+		creds := fritzbox.ClientCredentials{
+			Username:  fritzboxUsername,
+			Password:  fritzboxPassword,
+			VerifyTLS: fritzboxVerifyTLS,
 		}
-		logrus.Infof("Got external IPv6 address: %v", externalIPv6)
-		externalIPv6Prefix, err := client.GetExternalIPv6Prefix()
+		client, err := fritzbox.NewClient(fritzboxURL, creds)
 		if err != nil {
-			logrus.Errorf("Could not get external IPv6 prefix: %v", err)
-			os.Exit(1)
+			logrus.Errorf("error creating fritzbox client: %v", err)
 		}
-		logrus.Infof("Got external IPv6 prefix: %v", externalIPv6Prefix)
-		externalIPv4, err := client.GetExternalIPv4Address()
+		ips, err := client.GetPublicIPs()
 		if err != nil {
-			logrus.Errorf("Could not get external IPv6 prefix: %v", err)
-			os.Exit(1)
+			logrus.Errorf("error getting public IPs: %v", err)
 		}
-		logrus.Infof("Got external IPv4 address: %v", externalIPv4)
+		logrus.Infof("Got external IPv4 address: %v", ips)
 	},
 }
 
