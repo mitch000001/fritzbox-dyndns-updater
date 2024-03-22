@@ -1,6 +1,7 @@
 package ddns
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -41,7 +42,7 @@ func (n *noipProvider) Name() string {
 }
 
 // UpdateRecord implements Provider.
-func (n *noipProvider) UpdateRecord(dnsName string, ipAddresses ...ip.IP) error {
+func (n *noipProvider) UpdateRecord(ctx context.Context, dnsName string, ipAddresses ...ip.IP) error {
 	var ips []string
 	for _, ip := range ipAddresses {
 		if ip.IsPrefix {
@@ -59,7 +60,7 @@ func (n *noipProvider) UpdateRecord(dnsName string, ipAddresses ...ip.IP) error 
 	}
 
 	logrus.Debugf("uri: %v", uri)
-	req, err := http.NewRequest("GET", uri.String(), nil)
+	req, err := http.NewRequestWithContext(ctx, "GET", uri.String(), nil)
 	if err != nil {
 		return fmt.Errorf("error creating request for noip: %v", err)
 	}

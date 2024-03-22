@@ -139,7 +139,7 @@ func updateRecords(ctx context.Context, client fritzbox.Client, provider ddns.Pr
 			continue
 		}
 		logrus.Infof("Updating dns entry %q with IPs %v using %s\n", entry, fritzboxExternalIPs, provider.Name())
-		if err := provider.UpdateRecord(entry, fritzboxExternalIPs...); err != nil {
+		if err := provider.UpdateRecord(ctx, entry, fritzboxExternalIPs...); err != nil {
 			return fmt.Errorf("updating the records failed: %w", err)
 		}
 	}

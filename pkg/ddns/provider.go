@@ -1,11 +1,15 @@
 package ddns
 
-import "github.com/mitch000001/fritzbox-dyndns-updater/pkg/ip"
+import (
+	"context"
+
+	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ip"
+)
 
 var AvailableProviders = []string{}
 
 type Provider interface {
-	UpdateRecord(dnsName string, ips ...ip.IP) error
+	UpdateRecord(ctx context.Context, dnsName string, ips ...ip.IP) error
 	Name() string
 	SupportsIPv6PrefixUpdate() bool
 }

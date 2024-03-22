@@ -22,6 +22,7 @@ THE SOFTWARE.
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -59,7 +60,7 @@ to quickly create a Cobra application.`,
 			})
 		}
 		logrus.Infof("Updating dns name %q with IPs %v using %s\n", dnsNameFlag, ipsToUpdate, provider.Name())
-		if err := provider.UpdateRecord(dnsNameFlag, ipsToUpdate...); err != nil {
+		if err := provider.UpdateRecord(context.Background(), dnsNameFlag, ipsToUpdate...); err != nil {
 			logrus.Errorf("Updating the records failed: %v", err)
 			os.Exit(1)
 		}
