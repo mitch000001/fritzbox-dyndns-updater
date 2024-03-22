@@ -8,17 +8,20 @@ import (
 	"os"
 	"strings"
 
+	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ip"
 	"github.com/sirupsen/logrus"
 )
 
 func init() {
-	AvailableProviders = append(AvailableProviders, "noip")
+	AvailableProviders = append(AvailableProviders, providerNameNoIP)
 }
 
-func NewNoIPProvider(username, password string) Provider {
+const providerNameNoIP = "noip"
+
+func NewNoIPProvider(creds ProviderCredentials) Provider {
 	return &noipProvider{
-		username: username,
-		password: password,
+		username: creds.username,
+		password: creds.password,
 	}
 }
 
@@ -27,8 +30,25 @@ type noipProvider struct {
 	password string
 }
 
+// SupportsIPv6PrefixUpdate implements Provider.
+func (n *noipProvider) SupportsIPv6PrefixUpdate() bool {
+	return false
+}
+
+// Name implements Provider.
+func (n *noipProvider) Name() string {
+	return providerNameNoIP
+}
+
 // UpdateRecord implements Provider.
-func (n *noipProvider) UpdateRecord(dnsName string, ips ...string) error {
+func (n *noipProvider) UpdateRecord(dnsName string, ipAddresses ...ip.IP) error {
+	var ips []string
+	for _, ip := range ipAddresses {
+		if ip.IsPrefix {
+			continue
+		}
+		ips = append(ips, ip.IP.String())
+	}
 	query := url.Values{}
 	query.Add("hostname", dnsName)
 	query.Add("myip", strings.Join(ips, ","))

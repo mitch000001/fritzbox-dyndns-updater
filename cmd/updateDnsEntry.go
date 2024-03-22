@@ -23,9 +23,12 @@ package cmd
 
 import (
 	"fmt"
+	"net"
+	"os"
 	"slices"
 
 	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ddns"
+	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ip"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -41,20 +44,24 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		switch provider.name {
-		case "noip":
-			ipsToUpdate := []string{}
-			if ipv4 != "" {
-				ipsToUpdate = append(ipsToUpdate, ipv4)
-			}
-			if ipv6 != "" {
-				ipsToUpdate = append(ipsToUpdate, ipv6)
-			}
-			logrus.Infof("Updating dns name %q with IPs %v using NoIP\n", dnsName, ipsToUpdate)
-			provider := ddns.NewNoIPProvider(providerUsername, providerPassword)
-			provider.UpdateRecord(dnsName, ipsToUpdate...)
-		default:
-			panic("unreachable")
+		provider := provider.ProviderFactory()(ddns.UsernamePasswordCredentials(
+			providerUsername, providerPassword,
+		))
+		var ipsToUpdate []ip.IP
+		if ipv4 != "" {
+			ipsToUpdate = append(ipsToUpdate, ip.IP{
+				IP: net.ParseIP(ipv4),
+			})
+		}
+		if ipv6 != "" {
+			ipsToUpdate = append(ipsToUpdate, ip.IP{
+				IP: net.ParseIP(ipv6),
+			})
+		}
+		logrus.Infof("Updating dns name %q with IPs %v using %s\n", dnsName, ipsToUpdate, provider.Name())
+		if err := provider.UpdateRecord(dnsName, ipsToUpdate...); err != nil {
+			logrus.Errorf("Updating the records failed: %v", err)
+			os.Exit(1)
 		}
 	},
 }
@@ -70,6 +77,15 @@ var (
 
 type DDNSProvider struct {
 	name string
+}
+
+func (d *DDNSProvider) ProviderFactory() ddns.ProviderFactory {
+	switch provider.name {
+	case "noip":
+		return ddns.NewNoIPProvider
+	default:
+		panic("unreachable")
+	}
 }
 
 // Set implements pflag.Value.
@@ -97,9 +113,9 @@ func init() {
 		&provider, "provider",
 		fmt.Sprintf("the DDNS provider to use. Availabe providers are %v", ddns.AvailableProviders),
 	)
+	updateDnsEntryCmd.Flags().StringVar(&providerUsername, "provider.username", "", "the ddns provider username")
+	updateDnsEntryCmd.Flags().StringVar(&providerPassword, "provider.password", "", "the ddns provider password")
 	updateDnsEntryCmd.Flags().StringVar(&ipv4, "ipv4", "", "the IPv4 adress to set")
 	updateDnsEntryCmd.Flags().StringVar(&ipv6, "ipv6", "", "the IPv6 adress to set")
 	updateDnsEntryCmd.Flags().StringVar(&dnsName, "dns-name", "", "the ddns domain to update")
-	updateDnsEntryCmd.Flags().StringVar(&providerUsername, "provider.username", "", "the ddns provider username")
-	updateDnsEntryCmd.Flags().StringVar(&providerPassword, "provider.password", "", "the ddns provider password")
 }
