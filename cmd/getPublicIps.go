@@ -60,6 +60,12 @@ to quickly create a Cobra application.`,
 			os.Exit(1)
 		}
 		logrus.Infof("Got external IPv6 prefix: %v", externalIPv6Prefix)
+		externalIPv4, err := client.GetExternalIPv4Address()
+		if err != nil {
+			logrus.Errorf("Could not get external IPv6 prefix: %v", err)
+			os.Exit(1)
+		}
+		logrus.Infof("Got external IPv4 address: %v", externalIPv4)
 	},
 }
 

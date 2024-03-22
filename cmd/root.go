@@ -25,11 +25,13 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
 
 var cfgFile string
+var logLevel logLevelFlag
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -56,17 +58,25 @@ func Execute() {
 }
 
 func init() {
-	cobra.OnInitialize(initConfig)
+	cobra.OnInitialize(initConfig, setLogLevel)
 
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.fritzbox-dyndns-updater.yaml)")
+	rootCmd.PersistentFlags().Var(&logLevel, "log.level", "the log level to be used")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+}
+
+func setLogLevel() {
+	if logLevel.level == nil {
+		return
+	}
+	logrus.SetLevel(*logLevel.level)
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -91,4 +101,28 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+type logLevelFlag struct {
+	level *logrus.Level
+}
+
+// Set implements pflag.Value.
+func (l *logLevelFlag) Set(v string) error {
+	lvl, err := logrus.ParseLevel(v)
+	if err != nil {
+		return fmt.Errorf("malformed log level: %w", err)
+	}
+	l.level = &lvl
+	return nil
+}
+
+// String implements pflag.Value.
+func (l *logLevelFlag) String() string {
+	return fmt.Sprintf("%v", l.level)
+}
+
+// Type implements pflag.Value.
+func (l *logLevelFlag) Type() string {
+	return "string"
 }
