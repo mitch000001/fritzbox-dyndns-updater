@@ -43,7 +43,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		resolver := net.Resolver{}
 		var results = map[string][]net.IPAddr{}
-		for _, entry := range dnsNames {
+		for _, entry := range dnsNamesFlag {
 			res, err := resolver.LookupIPAddr(context.Background(), entry)
 			if err != nil {
 				logrus.Errorf("Error looking up dns name %q: %v", entry, err)
@@ -56,9 +56,9 @@ to quickly create a Cobra application.`,
 	},
 }
 
-var dnsNames []string
+var dnsNamesFlag []string
 
 func init() {
 	rootCmd.AddCommand(getDnsEntriesCmd)
-	getDnsEntriesCmd.Flags().StringArrayVar(&dnsNames, "dns-entries", []string{}, "specifies the dns entries to look up")
+	getDnsEntriesCmd.Flags().StringArrayVar(&dnsNamesFlag, "dns-entries", []string{}, "specifies the dns entries to look up")
 }

@@ -58,8 +58,8 @@ to quickly create a Cobra application.`,
 				IP: net.ParseIP(ipv6),
 			})
 		}
-		logrus.Infof("Updating dns name %q with IPs %v using %s\n", dnsName, ipsToUpdate, provider.Name())
-		if err := provider.UpdateRecord(dnsName, ipsToUpdate...); err != nil {
+		logrus.Infof("Updating dns name %q with IPs %v using %s\n", dnsNameFlag, ipsToUpdate, provider.Name())
+		if err := provider.UpdateRecord(dnsNameFlag, ipsToUpdate...); err != nil {
 			logrus.Errorf("Updating the records failed: %v", err)
 			os.Exit(1)
 		}
@@ -70,7 +70,7 @@ var (
 	provider         DDNSProvider
 	providerUsername string
 	providerPassword string
-	dnsName          string
+	dnsNameFlag      string
 	ipv4             string
 	ipv6             string
 )
@@ -117,5 +117,5 @@ func init() {
 	updateDnsEntryCmd.Flags().StringVar(&providerPassword, "provider.password", "", "the ddns provider password")
 	updateDnsEntryCmd.Flags().StringVar(&ipv4, "ipv4", "", "the IPv4 adress to set")
 	updateDnsEntryCmd.Flags().StringVar(&ipv6, "ipv6", "", "the IPv6 adress to set")
-	updateDnsEntryCmd.Flags().StringVar(&dnsName, "dns-name", "", "the ddns domain to update")
+	updateDnsEntryCmd.Flags().StringVar(&dnsNameFlag, "dns-name", "", "the ddns domain to update")
 }
