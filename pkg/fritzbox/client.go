@@ -15,7 +15,7 @@ type ClientCredentials struct {
 }
 
 type Client interface {
-	GetPublicIPs() ([]ip.IP, error)
+	GetPublicIPs(withIPv6Prefix bool) ([]ip.IP, error)
 }
 
 func NewClient(url string, creds ClientCredentials) (Client, error) {
@@ -30,7 +30,7 @@ type client struct {
 }
 
 // GetPublicIPs implements Client.
-func (c *client) GetPublicIPs() ([]ip.IP, error) {
+func (c *client) GetPublicIPs(withIPv6Prefix bool) ([]ip.IP, error) {
 	var ips []ip.IP
 	logrus.Infoln("Getting external IPv6 address")
 	externalIPv6, err := c.UPNPClient.GetExternalIPv6Address()
@@ -48,23 +48,25 @@ func (c *client) GetPublicIPs() ([]ip.IP, error) {
 		IP:  extIpv6IP,
 		Net: *extIpv6Net,
 	})
-	logrus.Infoln("Getting external IPv6 prefix")
-	externalIPv6Prefix, err := c.UPNPClient.GetExternalIPv6Prefix()
-	if err != nil {
-		return nil, fmt.Errorf("could not get external IPv6 prefix: %w", err)
+	if withIPv6Prefix {
+		logrus.Infoln("Getting external IPv6 prefix")
+		externalIPv6Prefix, err := c.UPNPClient.GetExternalIPv6Prefix()
+		if err != nil {
+			return nil, fmt.Errorf("could not get external IPv6 prefix: %w", err)
+		}
+		logrus.Debugf("Got external IPv6 prefix: %v", externalIPv6Prefix)
+		extIpv6PrefixIP, extIpv6PrefixNet, err := net.ParseCIDR(
+			fmt.Sprintf("%s/%d", externalIPv6Prefix.IPv6Prefix, externalIPv6Prefix.PrefixLength),
+		)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing external IPv6 Prefix CIDR: %w", err)
+		}
+		ips = append(ips, ip.IP{
+			IP:       extIpv6PrefixIP,
+			Net:      *extIpv6PrefixNet,
+			IsPrefix: true,
+		})
 	}
-	logrus.Debugf("Got external IPv6 prefix: %v", externalIPv6Prefix)
-	extIpv6PrefixIP, extIpv6PrefixNet, err := net.ParseCIDR(
-		fmt.Sprintf("%s/%d", externalIPv6Prefix.IPv6Prefix, externalIPv6Prefix.PrefixLength),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("error parsing external IPv6 Prefix CIDR: %w", err)
-	}
-	ips = append(ips, ip.IP{
-		IP:       extIpv6PrefixIP,
-		Net:      *extIpv6PrefixNet,
-		IsPrefix: true,
-	})
 	logrus.Infoln("Getting external IPv4 address")
 	externalIPv4, err := c.UPNPClient.GetExternalIPv4Address()
 	if err != nil {

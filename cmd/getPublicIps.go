@@ -54,7 +54,7 @@ to quickly create a Cobra application.`,
 		if err != nil {
 			logrus.Errorf("error creating fritzbox client: %v", err)
 		}
-		ips, err := client.GetPublicIPs()
+		ips, err := client.GetPublicIPs(true)
 		if err != nil {
 			logrus.Errorf("error getting public IPs: %v", err)
 		}
