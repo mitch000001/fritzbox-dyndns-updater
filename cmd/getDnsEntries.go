@@ -22,10 +22,10 @@ THE SOFTWARE.
 package cmd
 
 import (
-	"context"
 	"fmt"
 	"net"
 
+	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ip"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -42,9 +42,9 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		resolver := net.Resolver{}
-		var results = map[string][]net.IPAddr{}
+		var results = map[string][]ip.CIDR{}
 		for _, entry := range dnsNamesFlag {
-			res, err := resolver.LookupIPAddr(context.Background(), entry)
+			res, err := resolveDNSEntry(cmd.Context(), &resolver, entry)
 			if err != nil {
 				logrus.Errorf("Error looking up dns name %q: %v", entry, err)
 			}
