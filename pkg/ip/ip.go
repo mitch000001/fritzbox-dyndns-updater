@@ -1,9 +1,13 @@
 package ip
 
-import "net"
+import (
+	"net/netip"
+)
 
-type IP struct {
-	IP       net.IP
-	Net      net.IPNet
-	IsPrefix bool
+type CIDR struct {
+	Prefix           netip.Prefix
+	PreferedLifetime int
+	PrefixLength     int
+	ValidLifetime    int
+	IsPrefix         bool
 }

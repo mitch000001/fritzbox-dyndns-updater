@@ -2,7 +2,7 @@ package fritzbox
 
 import (
 	"fmt"
-	"net"
+	"net/netip"
 
 	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ip"
 	"github.com/sirupsen/logrus"
@@ -15,7 +15,7 @@ type ClientCredentials struct {
 }
 
 type Client interface {
-	GetPublicIPs(withIPv6Prefix bool) ([]ip.IP, error)
+	GetPublicIPs(withIPv6Prefix bool) ([]ip.CIDR, error)
 }
 
 func NewClient(url string, creds ClientCredentials) (Client, error) {
@@ -30,23 +30,28 @@ type client struct {
 }
 
 // GetPublicIPs implements Client.
-func (c *client) GetPublicIPs(withIPv6Prefix bool) ([]ip.IP, error) {
-	var ips []ip.IP
+func (c *client) GetPublicIPs(withIPv6Prefix bool) ([]ip.CIDR, error) {
+	var cidrs []ip.CIDR
 	logrus.Infoln("Getting external IPv6 address")
 	externalIPv6, err := c.UPNPClient.GetExternalIPv6Address()
 	if err != nil {
 		return nil, fmt.Errorf("could not get external IPv6 address: %v", err)
 	}
 	logrus.Debugf("Got external IPv6 address: %v", externalIPv6)
-	extIpv6IP, extIpv6Net, err := net.ParseCIDR(
-		fmt.Sprintf("%s/%d", externalIPv6.IPv6Address, externalIPv6.PrefixLength),
+	extIpv6Addr, err := netip.ParseAddr(
+		externalIPv6.IPv6Address,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing external IPv6 CIDR: %w", err)
+		return nil, fmt.Errorf("error parsing external IPv6 Address: %w", err)
 	}
-	ips = append(ips, ip.IP{
-		IP:  extIpv6IP,
-		Net: *extIpv6Net,
+	extIpv6Prefix := netip.PrefixFrom(
+		extIpv6Addr, externalIPv6.PrefixLength,
+	)
+	cidrs = append(cidrs, ip.CIDR{
+		Prefix:           extIpv6Prefix,
+		PreferedLifetime: externalIPv6.PreferedLifetime,
+		ValidLifetime:    externalIPv6.ValidLifetime,
+		PrefixLength:     externalIPv6.PrefixLength,
 	})
 	if withIPv6Prefix {
 		logrus.Infoln("Getting external IPv6 prefix")
@@ -55,16 +60,20 @@ func (c *client) GetPublicIPs(withIPv6Prefix bool) ([]ip.IP, error) {
 			return nil, fmt.Errorf("could not get external IPv6 prefix: %w", err)
 		}
 		logrus.Debugf("Got external IPv6 prefix: %v", externalIPv6Prefix)
-		extIpv6PrefixIP, extIpv6PrefixNet, err := net.ParseCIDR(
-			fmt.Sprintf("%s/%d", externalIPv6Prefix.IPv6Prefix, externalIPv6Prefix.PrefixLength),
+		extIpv6PrefixAddr, err := netip.ParseAddr(
+			externalIPv6.IPv6Address,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("error parsing external IPv6 Prefix CIDR: %w", err)
+			return nil, fmt.Errorf("error parsing external IPv6 prefix: %w", err)
 		}
-		ips = append(ips, ip.IP{
-			IP:       extIpv6PrefixIP,
-			Net:      *extIpv6PrefixNet,
-			IsPrefix: true,
+		cidrs = append(cidrs, ip.CIDR{
+			Prefix: netip.PrefixFrom(
+				extIpv6PrefixAddr, externalIPv6Prefix.PrefixLength,
+			),
+			PreferedLifetime: externalIPv6Prefix.PreferedLifetime,
+			ValidLifetime:    externalIPv6Prefix.ValidLifetime,
+			PrefixLength:     externalIPv6Prefix.PrefixLength,
+			IsPrefix:         true,
 		})
 	}
 	logrus.Infoln("Getting external IPv4 address")
@@ -73,15 +82,14 @@ func (c *client) GetPublicIPs(withIPv6Prefix bool) ([]ip.IP, error) {
 		return nil, fmt.Errorf("could not get external IPv6 prefix: %w", err)
 	}
 	logrus.Debugf("Got external IPv4 address: %v", externalIPv4)
-	extIpv4IP, extIpv4Net, err := net.ParseCIDR(
-		fmt.Sprintf("%s/32", externalIPv4.IPv4Address),
+	extIpv4Addr, err := netip.ParseAddr(
+		externalIPv4.IPv4Address,
 	)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing external IPv6 CIDR: %w", err)
+		return nil, fmt.Errorf("error parsing external IPv4 Address: %w", err)
 	}
-	ips = append(ips, ip.IP{
-		IP:  extIpv4IP,
-		Net: *extIpv4Net,
+	cidrs = append(cidrs, ip.CIDR{
+		Prefix: netip.PrefixFrom(extIpv4Addr, 32),
 	})
-	return ips, nil
+	return cidrs, nil
 }

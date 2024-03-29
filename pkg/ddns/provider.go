@@ -9,7 +9,7 @@ import (
 var AvailableProviders = []string{}
 
 type Provider interface {
-	UpdateRecord(ctx context.Context, dnsName string, ips ...ip.IP) error
+	UpdateRecord(ctx context.Context, dnsName string, ips ...ip.CIDR) error
 	Name() string
 	SupportsIPv6PrefixUpdate() bool
 }

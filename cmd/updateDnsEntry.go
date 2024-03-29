@@ -24,7 +24,7 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"net"
+	"net/netip"
 	"os"
 	"slices"
 
@@ -48,15 +48,25 @@ to quickly create a Cobra application.`,
 		provider := provider.ProviderFactory()(ddns.UsernamePasswordCredentials(
 			providerUsername, providerPassword,
 		))
-		var ipsToUpdate []ip.IP
+		var ipsToUpdate []ip.CIDR
 		if ipv4 != "" {
-			ipsToUpdate = append(ipsToUpdate, ip.IP{
-				IP: net.ParseIP(ipv4),
+			ipv4Prefix, err := netip.ParsePrefix(ipv4)
+			if err != nil {
+				logrus.Errorf("Error parsing ipv4 as CIDR: %v", err)
+				os.Exit(1)
+			}
+			ipsToUpdate = append(ipsToUpdate, ip.CIDR{
+				Prefix: ipv4Prefix,
 			})
 		}
 		if ipv6 != "" {
-			ipsToUpdate = append(ipsToUpdate, ip.IP{
-				IP: net.ParseIP(ipv6),
+			ipv6Prefix, err := netip.ParsePrefix(ipv6)
+			if err != nil {
+				logrus.Errorf("Error parsing ipv6 as CIDR: %v", err)
+				os.Exit(1)
+			}
+			ipsToUpdate = append(ipsToUpdate, ip.CIDR{
+				Prefix: ipv6Prefix,
 			})
 		}
 		logrus.Infof("Updating dns name %q with IPs %v using %s\n", dnsNameFlag, ipsToUpdate, provider.Name())

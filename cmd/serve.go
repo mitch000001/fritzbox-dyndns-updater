@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"os/signal"
 	"slices"
@@ -108,31 +109,36 @@ func updateRecords(ctx context.Context, client fritzbox.Client, provider ddns.Pr
 	logrus.Debugf("Collected public IPs from fritzbox: %v", fritzboxExternalIPs)
 	logrus.Infoln("Collect DNS records")
 	resolver := net.Resolver{}
-	var dnsResults = map[string][]ip.IP{}
+	var dnsResults = map[string][]ip.CIDR{}
 	for _, entry := range dnsNames {
 		logrus.Infof("Get DNS records for %q", entry)
 		res, err := resolver.LookupIPAddr(ctx, entry)
 		if err != nil {
 			logrus.Errorf("Error looking up dns name %q: %v", entry, err)
 		}
-		var dnsIPs []ip.IP
+		var dnsIPs []ip.CIDR
 		for _, ipAddr := range res {
-			dnsIPs = append(dnsIPs, ip.IP{
-				IP: ipAddr.IP,
+			prefix, err := netip.ParsePrefix(ipAddr.String())
+			if err != nil {
+				logrus.Errorf("Error parsing Address CIDR: %v", err)
+			}
+			dnsIPs = append(dnsIPs, ip.CIDR{
+				Prefix:       prefix,
+				PrefixLength: prefix.Bits(),
 			})
 		}
 		dnsResults[entry] = dnsIPs
 		logrus.Debugf("Collected public IPs for %q: %v", entry, dnsResults)
 	}
 	for entry, ips := range dnsResults {
-		slices.SortFunc(ips, func(a, b ip.IP) int {
-			return cmp.Compare(a.IP.String(), b.IP.String())
+		slices.SortFunc(ips, func(a, b ip.CIDR) int {
+			return cmp.Compare(a.Prefix.String(), b.Prefix.String())
 		})
-		slices.SortFunc(fritzboxExternalIPs, func(a, b ip.IP) int {
-			return cmp.Compare(a.IP.String(), b.IP.String())
+		slices.SortFunc(fritzboxExternalIPs, func(a, b ip.CIDR) int {
+			return cmp.Compare(a.Prefix.String(), b.Prefix.String())
 		})
-		result := slices.CompareFunc(ips, fritzboxExternalIPs, func(a ip.IP, b ip.IP) int {
-			return cmp.Compare(a.IP.String(), b.IP.String())
+		result := slices.CompareFunc(ips, fritzboxExternalIPs, func(a, b ip.CIDR) int {
+			return cmp.Compare(a.Prefix.String(), b.Prefix.String())
 		})
 		if result == 0 {
 			logrus.Infof("Records for %q already match the actual IPs", entry)

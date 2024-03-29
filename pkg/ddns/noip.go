@@ -42,13 +42,13 @@ func (n *noipProvider) Name() string {
 }
 
 // UpdateRecord implements Provider.
-func (n *noipProvider) UpdateRecord(ctx context.Context, dnsName string, ipAddresses ...ip.IP) error {
+func (n *noipProvider) UpdateRecord(ctx context.Context, dnsName string, ipAddresses ...ip.CIDR) error {
 	var ips []string
 	for _, ip := range ipAddresses {
 		if ip.IsPrefix {
 			continue
 		}
-		ips = append(ips, ip.IP.String())
+		ips = append(ips, ip.Prefix.Addr().String())
 	}
 	query := url.Values{}
 	query.Add("hostname", dnsName)
