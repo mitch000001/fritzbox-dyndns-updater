@@ -63,7 +63,7 @@ to quickly create a Cobra application.`,
 		provider := provider.ProviderFactory()(ddns.UsernamePasswordCredentials(
 			providerUsername, providerPassword,
 		))
-		ctx := context.Background()
+		ctx := cmd.Context()
 		err = updateRecords(ctx, client, provider, dnsNamesFlag)
 		if runOnce {
 			if err != nil {
@@ -112,34 +112,15 @@ func updateRecords(ctx context.Context, client fritzbox.Client, provider ddns.Pr
 	var dnsResults = map[string][]ip.CIDR{}
 	for _, entry := range dnsNames {
 		logrus.Infof("Get DNS records for %q", entry)
-		res, err := resolver.LookupIPAddr(ctx, entry)
+		dnsIPs, err := resolveDNSEntry(ctx, &resolver, entry)
 		if err != nil {
 			logrus.Errorf("Error looking up dns name %q: %v", entry, err)
-		}
-		var dnsIPs []ip.CIDR
-		for _, ipAddr := range res {
-			prefix, err := netip.ParsePrefix(ipAddr.String())
-			if err != nil {
-				logrus.Errorf("Error parsing Address CIDR: %v", err)
-			}
-			dnsIPs = append(dnsIPs, ip.CIDR{
-				Prefix:       prefix,
-				PrefixLength: prefix.Bits(),
-			})
 		}
 		dnsResults[entry] = dnsIPs
 		logrus.Debugf("Collected public IPs for %q: %v", entry, dnsResults)
 	}
 	for entry, ips := range dnsResults {
-		slices.SortFunc(ips, func(a, b ip.CIDR) int {
-			return cmp.Compare(a.Prefix.String(), b.Prefix.String())
-		})
-		slices.SortFunc(fritzboxExternalIPs, func(a, b ip.CIDR) int {
-			return cmp.Compare(a.Prefix.String(), b.Prefix.String())
-		})
-		result := slices.CompareFunc(ips, fritzboxExternalIPs, func(a, b ip.CIDR) int {
-			return cmp.Compare(a.Prefix.String(), b.Prefix.String())
-		})
+		result := compareCIDRS(ips, fritzboxExternalIPs)
 		if result == 0 {
 			logrus.Infof("Records for %q already match the actual IPs", entry)
 			continue
@@ -150,6 +131,37 @@ func updateRecords(ctx context.Context, client fritzbox.Client, provider ddns.Pr
 		}
 	}
 	return nil
+}
+
+func resolveDNSEntry(ctx context.Context, resolver *net.Resolver, host string) ([]ip.CIDR, error) {
+	res, err := resolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		return nil, fmt.Errorf("error looking up dns host %q: %v", host, err)
+	}
+	var dnsIPs []ip.CIDR
+	for _, ipAddr := range res {
+		prefix, err := netip.ParsePrefix(ipAddr.String())
+		if err != nil {
+			return nil, fmt.Errorf("error parsing Address CIDR: %v", err)
+		}
+		dnsIPs = append(dnsIPs, ip.CIDR{
+			Prefix:       prefix,
+			PrefixLength: prefix.Bits(),
+		})
+	}
+	return dnsIPs, nil
+}
+
+func compareCIDRS(i, j []ip.CIDR) int {
+	slices.SortFunc(i, func(a, b ip.CIDR) int {
+		return cmp.Compare(a.Prefix.String(), b.Prefix.String())
+	})
+	slices.SortFunc(j, func(a, b ip.CIDR) int {
+		return cmp.Compare(a.Prefix.String(), b.Prefix.String())
+	})
+	return slices.CompareFunc(i, j, func(a, b ip.CIDR) int {
+		return cmp.Compare(a.Prefix.String(), b.Prefix.String())
+	})
 }
 
 var (
