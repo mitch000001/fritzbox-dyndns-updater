@@ -24,6 +24,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/netip"
 	"os"
 	"slices"
@@ -69,6 +70,20 @@ to quickly create a Cobra application.`,
 				Prefix: ipv6Prefix,
 			})
 		}
+		if checkIfUpdateIsNeeded {
+			logrus.Infof("Get DNS records for %q", dnsNameFlag)
+			resolver := net.Resolver{}
+			dnsIPs, err := resolveDNSEntry(cmd.Context(), &resolver, dnsNameFlag)
+			if err != nil {
+				logrus.Errorf("Error looking up dns name %q: %v", dnsNameFlag, err)
+			}
+			result := compareCIDRS(ipsToUpdate, dnsIPs)
+			if result == 0 {
+				logrus.Infof("Records for %q already match the actual IPs", dnsNameFlag)
+				os.Exit(1)
+				return
+			}
+		}
 		logrus.Infof("Updating dns name %q with IPs %v using %s\n", dnsNameFlag, ipsToUpdate, provider.Name())
 		if err := provider.UpdateRecord(context.Background(), dnsNameFlag, ipsToUpdate...); err != nil {
 			logrus.Errorf("Updating the records failed: %v", err)
@@ -78,12 +93,13 @@ to quickly create a Cobra application.`,
 }
 
 var (
-	provider         DDNSProvider
-	providerUsername string
-	providerPassword string
-	dnsNameFlag      string
-	ipv4             string
-	ipv6             string
+	provider              DDNSProvider
+	providerUsername      string
+	providerPassword      string
+	dnsNameFlag           string
+	ipv4                  string
+	ipv6                  string
+	checkIfUpdateIsNeeded bool
 )
 
 type DDNSProvider struct {
@@ -129,4 +145,5 @@ func init() {
 	updateDnsEntryCmd.Flags().StringVar(&ipv4, "ipv4", "", "the IPv4 adress to set")
 	updateDnsEntryCmd.Flags().StringVar(&ipv6, "ipv6", "", "the IPv6 adress to set")
 	updateDnsEntryCmd.Flags().StringVar(&dnsNameFlag, "dns-name", "", "the ddns domain to update")
+	updateDnsEntryCmd.Flags().BoolVar(&checkIfUpdateIsNeeded, "check-if-needed", false, "check via DNS resolution if the entries needs an update")
 }
