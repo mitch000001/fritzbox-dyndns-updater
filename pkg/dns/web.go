@@ -3,6 +3,7 @@ package dns
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -21,13 +22,6 @@ func NewWebResolver(cfg WebResolverConfig) Resolver {
 
 var defaultWebResolverURL = url.URL{Scheme: "https", Host: "icanhazip.com"}
 
-var v6Resolver = &net.Resolver{
-	PreferGo: net.DefaultResolver.PreferGo,
-	Dial: func(ctx context.Context, network, address string) (net.Conn, error) {
-		return net.DefaultResolver.Dial(ctx, "ipv6", address)
-	},
-}
-
 type WebResolverConfig struct {
 	HTTPClient *http.Client
 	URL        *url.URL
@@ -40,27 +34,40 @@ type webResolver struct {
 func (w *webResolver) GetPublicIPs(ctx context.Context) ([]ip.CIDR, error) {
 	w.init()
 	var ips []ip.CIDR
+	logrus.Infoln("Getting default external IP address")
 	publicIP, err := w.getPublicIP(ctx, w.config.HTTPClient.Transport)
 	if err != nil {
 		return nil, fmt.Errorf("error getting public IP: %w", err)
 	}
 	ips = append(ips, *publicIP)
 	if publicIP.Prefix.Addr().Is4() {
+		logrus.Debugf("Got external IPv4 address: %v", publicIP)
 		ipv6, err := w.getPublicIPv6(ctx)
-		if err != nil {
-			logrus.Errorf("Error getting IPv6 address: %v", err)
+		opErr := &net.OpError{}
+		if errors.As(err, &opErr) && opErr.Op == "dial" {
+			logrus.Infof("Unable to get IPv6 address: %v", err)
 			return ips, nil
 		}
+		if err != nil {
+			return nil, fmt.Errorf("error getting IPv6 address: %w", err)
+		}
 		ips = append(ips, *ipv6)
+		logrus.Debugf("Got external IPv6 address: %v", ipv6)
 		return ips, nil
 	}
 	if publicIP.Prefix.Addr().Is6() {
+		logrus.Debugf("Got external IPv6 address: %v", publicIP)
 		ipv4, err := w.getPublicIPv4(ctx)
-		if err != nil {
-			logrus.Errorf("Error getting IPv4 address: %v", err)
+		opErr := &net.OpError{}
+		if errors.As(err, &opErr) && opErr.Op == "dial" {
+			logrus.Infof("Unable to get IPv4 address: %v", err)
 			return ips, nil
 		}
+		if err != nil {
+			return nil, fmt.Errorf("error getting IPv4 address: %w", err)
+		}
 		ips = append(ips, *ipv4)
+		logrus.Debugf("Got external IPv4 address: %v", ipv4)
 		return ips, nil
 	}
 
@@ -68,6 +75,7 @@ func (w *webResolver) GetPublicIPs(ctx context.Context) ([]ip.CIDR, error) {
 }
 
 func (w *webResolver) getPublicIPv4(ctx context.Context) (*ip.CIDR, error) {
+	logrus.Infoln("Getting external IPv4 address")
 	v4Transport := http.DefaultTransport.(*http.Transport).Clone()
 	v4Transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return http.DefaultTransport.(*http.Transport).DialContext(ctx, "tcp4", addr)
@@ -76,6 +84,7 @@ func (w *webResolver) getPublicIPv4(ctx context.Context) (*ip.CIDR, error) {
 }
 
 func (w *webResolver) getPublicIPv6(ctx context.Context) (*ip.CIDR, error) {
+	logrus.Infoln("Getting external IPv6 address")
 	v6Transport := http.DefaultTransport.(*http.Transport).Clone()
 	v6Transport.DialContext = func(ctx context.Context, network, addr string) (net.Conn, error) {
 		return http.DefaultTransport.(*http.Transport).DialContext(ctx, "tcp6", addr)
