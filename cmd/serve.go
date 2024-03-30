@@ -106,7 +106,7 @@ func updateRecords(ctx context.Context, client fritzbox.Client, provider ddns.Pr
 	if err != nil {
 		return fmt.Errorf("error getting public IPs: %w", err)
 	}
-	logrus.Debugf("Collected public IPs from fritzbox: %v", fritzboxExternalIPs)
+	logrus.Debugf("Collected public IPs from fritzbox: %v\n", fritzboxExternalIPs)
 	logrus.Infoln("Collect DNS records")
 	resolver := net.Resolver{}
 	var dnsResults = map[string][]ip.CIDR{}
@@ -117,12 +117,12 @@ func updateRecords(ctx context.Context, client fritzbox.Client, provider ddns.Pr
 			logrus.Errorf("Error looking up dns name %q: %v", entry, err)
 		}
 		dnsResults[entry] = dnsIPs
-		logrus.Debugf("Collected public IPs for %q: %v", entry, dnsResults)
+		logrus.Debugf("Collected public IPs for %q: %v\n", entry, dnsResults)
 	}
 	for entry, ips := range dnsResults {
 		result := compareCIDRS(ips, fritzboxExternalIPs)
 		if result == 0 {
-			logrus.Infof("Records for %q already match the actual IPs", entry)
+			logrus.Infof("Records for %q already match the actual IPs\n", entry)
 			continue
 		}
 		logrus.Infof("Updating dns entry %q with IPs %v using %s\n", entry, fritzboxExternalIPs, provider.Name())
