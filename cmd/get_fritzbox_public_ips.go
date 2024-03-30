@@ -1,5 +1,5 @@
 /*
-Copyright © 2024 Michael Wagner <mitch.wagna@gmail.com>
+Copyright © 2024 Michael Wagner
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,15 +26,22 @@ import (
 	"os"
 	"strings"
 
-	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/dns"
+	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/fritzbox"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
 
-// getOwnPublicIpsCmd represents the getOwnPublicIps command
-var getOwnPublicIpsCmd = &cobra.Command{
-	Use:   "getOwnPublicIps",
-	Short: "A brief description of your command",
+var (
+	fritzboxURL       string
+	fritzboxUsername  string
+	fritzboxPassword  string
+	fritzboxVerifyTLS bool
+)
+
+// getFritzboxPublicIpsCmd represents the getFritzboxPublicIpsCmd command
+var getFritzboxPublicIpsCmd = &cobra.Command{
+	Use:   "getFritzboxPublicIPs",
+	Short: "Get public IPs used by the fritzbox router",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -42,8 +49,16 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		resolver := dns.NewWebResolver(dns.WebResolverConfig{})
-		ips, err := resolver.GetPublicIPs(cmd.Context())
+		creds := fritzbox.ClientCredentials{
+			Username:  fritzboxUsername,
+			Password:  fritzboxPassword,
+			VerifyTLS: fritzboxVerifyTLS,
+		}
+		client, err := fritzbox.NewClient(fritzboxURL, creds)
+		if err != nil {
+			logrus.Errorf("error creating fritzbox client: %v", err)
+		}
+		ips, err := client.GetPublicIPs(true)
 		if err != nil {
 			logrus.Errorf("error getting public IPs: %v", err)
 			os.Exit(1)
@@ -63,15 +78,9 @@ to quickly create a Cobra application.`,
 }
 
 func init() {
-	rootCmd.AddCommand(getOwnPublicIpsCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// getOwnPublicIpsCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// getOwnPublicIpsCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rootCmd.AddCommand(getFritzboxPublicIpsCmd)
+	getFritzboxPublicIpsCmd.Flags().StringVar(&fritzboxURL, "fritzbox.url", "http://fritz.box:49000", "specify the fritzbox endpoint")
+	getFritzboxPublicIpsCmd.Flags().StringVar(&fritzboxUsername, "fritzbox.username", "", "specify the fritzbox user")
+	getFritzboxPublicIpsCmd.Flags().StringVar(&fritzboxPassword, "fritzbox.password", "", "specify the fritzbox password")
+	getFritzboxPublicIpsCmd.Flags().BoolVar(&fritzboxVerifyTLS, "fritzbox.verify-tls", false, "specify if the TLS certificate needs to be verified")
 }
