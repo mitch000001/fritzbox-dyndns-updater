@@ -37,8 +37,8 @@ import (
 
 // updateDnsEntryCmd represents the updateDnsEntry command
 var updateDnsEntryCmd = &cobra.Command{
-	Use:   "updateDnsEntry",
-	Short: "A brief description of your command",
+	Use:   "updateDnsEntry [flags] ips",
+	Short: "Update dyndns entries using the specified IPs",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
@@ -46,30 +46,15 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		ipArgs, err := parseIPArgs(args)
+		if err != nil {
+			logrus.Errorf("error parsing IPs: %v", err)
+			os.Exit(1)
+		}
 		provider := provider.ProviderFactory()(ddns.UsernamePasswordCredentials(
 			providerUsername, providerPassword,
 		))
-		var ipsToUpdate []ip.CIDR
-		if ipv4 != "" {
-			ipv4Prefix, err := netip.ParsePrefix(ipv4)
-			if err != nil {
-				logrus.Errorf("Error parsing ipv4 as CIDR: %v", err)
-				os.Exit(1)
-			}
-			ipsToUpdate = append(ipsToUpdate, ip.CIDR{
-				Prefix: ipv4Prefix,
-			})
-		}
-		if ipv6 != "" {
-			ipv6Prefix, err := netip.ParsePrefix(ipv6)
-			if err != nil {
-				logrus.Errorf("Error parsing ipv6 as CIDR: %v", err)
-				os.Exit(1)
-			}
-			ipsToUpdate = append(ipsToUpdate, ip.CIDR{
-				Prefix: ipv6Prefix,
-			})
-		}
+		ipsToUpdate := ipArgs
 		if checkIfUpdateIsNeeded {
 			logrus.Infof("Get DNS records for %q", dnsNameFlag)
 			resolver := net.Resolver{}
@@ -92,13 +77,33 @@ to quickly create a Cobra application.`,
 	},
 }
 
+func parseIPArgs(args []string) ([]ip.CIDR, error) {
+	var cidrs []ip.CIDR
+	for i, arg := range args {
+		addr, err := netip.ParseAddr(arg)
+		if err != nil {
+			return nil, fmt.Errorf("error parsing IP address from arg %d: %w", i+1, err)
+		}
+		if addr.Is6() {
+			cidrs = append(cidrs, ip.CIDR{
+				Prefix:       netip.PrefixFrom(addr, 128),
+				PrefixLength: 128,
+			})
+			continue
+		}
+		cidrs = append(cidrs, ip.CIDR{
+			Prefix:       netip.PrefixFrom(addr, 32),
+			PrefixLength: 32,
+		})
+	}
+	return cidrs, nil
+}
+
 var (
 	provider              DDNSProvider
 	providerUsername      string
 	providerPassword      string
 	dnsNameFlag           string
-	ipv4                  string
-	ipv6                  string
 	checkIfUpdateIsNeeded bool
 )
 
@@ -142,8 +147,6 @@ func init() {
 	)
 	updateDnsEntryCmd.Flags().StringVar(&providerUsername, "provider.username", "", "the ddns provider username")
 	updateDnsEntryCmd.Flags().StringVar(&providerPassword, "provider.password", "", "the ddns provider password")
-	updateDnsEntryCmd.Flags().StringVar(&ipv4, "ipv4", "", "the IPv4 adress to set")
-	updateDnsEntryCmd.Flags().StringVar(&ipv6, "ipv6", "", "the IPv6 adress to set")
 	updateDnsEntryCmd.Flags().StringVar(&dnsNameFlag, "dns-name", "", "the ddns domain to update")
 	updateDnsEntryCmd.Flags().BoolVar(&checkIfUpdateIsNeeded, "check-if-needed", false, "check via DNS resolution if the entries needs an update")
 }
