@@ -43,7 +43,7 @@ import (
 // serveCmd represents the serve command
 var serveCmd = &cobra.Command{
 	Use:   "serve",
-	Short: "A brief description of your command",
+	Short: "Run a loop which updates the dns entries using the fritzbox public IPs",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
 
