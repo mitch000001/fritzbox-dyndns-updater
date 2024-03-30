@@ -58,7 +58,7 @@ to quickly create a Cobra application.`,
 			}
 			ipStrings = append(ipStrings, ip.Prefix.Addr().String())
 		}
-		fmt.Printf("%s", strings.Join(ipStrings, "\n"))
+		fmt.Printf("%s\n", strings.Join(ipStrings, "\n"))
 	},
 }
 
