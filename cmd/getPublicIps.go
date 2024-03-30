@@ -23,6 +23,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/fritzbox"
@@ -60,6 +61,8 @@ to quickly create a Cobra application.`,
 		ips, err := client.GetPublicIPs(true)
 		if err != nil {
 			logrus.Errorf("error getting public IPs: %v", err)
+			os.Exit(1)
+			return
 		}
 		logrus.Infof("Got external IP addresses: %d", len(ips))
 		var ipStrings []string
@@ -70,7 +73,7 @@ to quickly create a Cobra application.`,
 			}
 			ipStrings = append(ipStrings, ip.Prefix.Addr().String())
 		}
-		fmt.Printf("%s", strings.Join(ipStrings, " "))
+		fmt.Printf("%s", strings.Join(ipStrings, "\n"))
 	},
 }
 
