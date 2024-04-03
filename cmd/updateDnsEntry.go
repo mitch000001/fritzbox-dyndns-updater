@@ -65,7 +65,7 @@ to quickly create a Cobra application.`,
 			result := compareCIDRS(ipsToUpdate, dnsIPs)
 			if result == 0 {
 				logrus.Infof("Records for %q already match the actual IPs", dnsNameFlag)
-				os.Exit(1)
+				os.Exit(0)
 				return
 			}
 		}
