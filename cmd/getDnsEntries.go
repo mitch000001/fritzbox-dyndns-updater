@@ -24,6 +24,7 @@ package cmd
 import (
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ip"
 	"github.com/sirupsen/logrus"
@@ -51,9 +52,25 @@ to quickly create a Cobra application.`,
 			results[entry] = res
 		}
 		for name, ips := range results {
-			fmt.Printf("%s: %v\n", name, ips)
+			logrus.Infof("Got IP addresses for %q: %d", name, len(ips))
+			fmt.Printf("%s %v\n", name, stringifyIPs(ips, ","))
 		}
 	},
+}
+
+func stringifyIPs(ips []ip.CIDR, delimiter string) string {
+	if delimiter == "" {
+		delimiter = "\n"
+	}
+	var ipStrings []string
+	for _, ip := range ips {
+		if ip.IsPrefix {
+			ipStrings = append(ipStrings, ip.Prefix.String())
+			continue
+		}
+		ipStrings = append(ipStrings, ip.Prefix.Addr().String())
+	}
+	return strings.Join(ipStrings, delimiter)
 }
 
 var dnsNamesFlag []string

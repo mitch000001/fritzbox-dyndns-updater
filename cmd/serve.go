@@ -140,14 +140,23 @@ func resolveDNSEntry(ctx context.Context, resolver *net.Resolver, host string) (
 	}
 	var dnsIPs []ip.CIDR
 	for _, ipAddr := range res {
-		prefix, err := netip.ParsePrefix(ipAddr.String())
+		addr, err := netip.ParseAddr(ipAddr.String())
 		if err != nil {
-			return nil, fmt.Errorf("error parsing Address CIDR: %v", err)
+			return nil, fmt.Errorf("error parsing address from response: %w", err)
 		}
-		dnsIPs = append(dnsIPs, ip.CIDR{
-			Prefix:       prefix,
-			PrefixLength: prefix.Bits(),
-		})
+		var cidr ip.CIDR
+		if addr.Is6() {
+			cidr = ip.CIDR{
+				Prefix:       netip.PrefixFrom(addr, 128),
+				PrefixLength: 128,
+			}
+		} else {
+			cidr = ip.CIDR{
+				Prefix:       netip.PrefixFrom(addr, 32),
+				PrefixLength: 32,
+			}
+		}
+		dnsIPs = append(dnsIPs, cidr)
 	}
 	return dnsIPs, nil
 }
