@@ -187,8 +187,9 @@ func init() {
 	serveCmd.Flags().BoolVar(&fritzboxVerifyTLS, "fritzbox.verify-tls", false, "specify if the TLS certificate needs to be verified")
 	serveCmd.Flags().Var(
 		&provider, "provider",
-		fmt.Sprintf("the DDNS provider to use. Availabe providers are %v", ddns.AvailableProviders),
+		fmt.Sprintf("the DDNS provider to use. Availabe providers are %v", ddns.AvailableProviders()),
 	)
+	serveCmd.MarkFlagRequired("provider")
 	serveCmd.Flags().StringVar(&providerUsername, "provider.username", "", "the ddns provider username")
 	serveCmd.Flags().StringVar(&providerPassword, "provider.password", "", "the ddns provider password")
 	serveCmd.Flags().DurationVar(&syncEvery, "sync-every", 1*time.Hour, "how often should the IPs be synced")

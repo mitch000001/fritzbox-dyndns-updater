@@ -14,7 +14,7 @@ import (
 )
 
 func init() {
-	AvailableProviders = append(AvailableProviders, providerNameNoIP)
+	registerProvider(providerNameNoIP, NewNoIPProvider)
 }
 
 const providerNameNoIP = "noip"
