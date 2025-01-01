@@ -27,9 +27,9 @@ import (
 	"net"
 	"net/netip"
 	"os"
-	"slices"
 
 	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ddns"
+	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ddns/flag"
 	"github.com/mitch000001/fritzbox-dyndns-updater/pkg/ip"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -100,51 +100,20 @@ func parseIPArgs(args []string) ([]ip.CIDR, error) {
 }
 
 var (
-	provider              DDNSProvider
+	provider              flag.DDNSProvider
 	providerUsername      string
 	providerPassword      string
 	dnsNameFlag           string
 	checkIfUpdateIsNeeded bool
 )
 
-type DDNSProvider struct {
-	name string
-}
-
-func (d *DDNSProvider) ProviderFactory() ddns.ProviderFactory {
-	switch provider.name {
-	case "noip":
-		return ddns.NewNoIPProvider
-	default:
-		panic("unreachable")
-	}
-}
-
-// Set implements pflag.Value.
-func (d *DDNSProvider) Set(v string) error {
-	if !slices.Contains(ddns.AvailableProviders, v) {
-		return fmt.Errorf("provider not supported: %q", v)
-	}
-	d.name = v
-	return nil
-}
-
-// String implements pflag.Value.
-func (d *DDNSProvider) String() string {
-	return d.name
-}
-
-// Type implements pflag.Value.
-func (d *DDNSProvider) Type() string {
-	return "string"
-}
-
 func init() {
 	rootCmd.AddCommand(updateDnsEntryCmd)
 	updateDnsEntryCmd.Flags().Var(
 		&provider, "provider",
-		fmt.Sprintf("the DDNS provider to use. Availabe providers are %v", ddns.AvailableProviders),
+		fmt.Sprintf("the DDNS provider to use. Availabe providers are %v", ddns.AvailableProviders()),
 	)
+	updateDnsEntryCmd.MarkFlagRequired("provider")
 	updateDnsEntryCmd.Flags().StringVar(&providerUsername, "provider.username", "", "the ddns provider username")
 	updateDnsEntryCmd.Flags().StringVar(&providerPassword, "provider.password", "", "the ddns provider password")
 	updateDnsEntryCmd.Flags().StringVar(&dnsNameFlag, "dns-name", "", "the ddns domain to update")
